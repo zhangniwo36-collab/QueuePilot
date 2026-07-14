@@ -21,7 +21,7 @@ test("server-renders the complete QueuePilot support workspace", async () => {
   assert.match(html, /Export CSV/);
   assert.match(html, /New ticket/);
   assert.match(html, /Demo only — no email will be sent/);
-  assert.match(html, /github\.com\/zhangniwo36-collab\/queuepilot/);
+  assert.match(html, /github\.com\/zhangniwo36-collab\/QueuePilot/);
   assert.doesNotMatch(html, /Your site is taking shape|codex-preview|react-loading-skeleton/i);
 });
 
@@ -42,3 +42,12 @@ test("ships a social preview image and metadata", async () => {
   assert.match(layout, /summary_large_image/);
   assert.match(layout, /\/og\.png/);
 });
+
+test("offers a Chinese interface while keeping English available for clients", async () => {
+  const workspace = await readFile(new URL("../app/components/queue-workspace.tsx", import.meta.url), "utf8");
+  assert.match(workspace, /navigator\.language\.startsWith\("zh"\)/);
+  assert.match(workspace, /队列晨间检查/);
+  assert.match(workspace, /中文/);
+  assert.match(workspace, /English/);
+});
+
