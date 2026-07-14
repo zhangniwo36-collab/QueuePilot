@@ -4,4 +4,5 @@
 - [x] Queue workspace: select, search, filter, assign, change status, reply, reset, export.
 - [x] Production UI, responsive states, accessibility, metadata, documentation.
 - [x] Full quality gate and public Sites deployment.
-- [ ] GitHub publication (waiting for the empty public repository).
+- [x] GitHub publication.
+
