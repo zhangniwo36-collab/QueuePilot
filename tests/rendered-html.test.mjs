@@ -45,9 +45,9 @@ test("ships a social preview image and metadata", async () => {
 
 test("offers a Chinese interface while keeping English available for clients", async () => {
   const workspace = await readFile(new URL("../app/components/queue-workspace.tsx", import.meta.url), "utf8");
-  assert.match(workspace, /navigator\.language\.startsWith\("zh"\)/);
+  assert.match(workspace, /resolveLocale\(window\.localStorage\.getItem\(LANGUAGE_KEY\), navigator\.language\)/);
+  assert.match(workspace, /document\.documentElement\.lang = htmlLanguage\(locale\)/);
   assert.match(workspace, /队列晨间检查/);
   assert.match(workspace, /中文/);
   assert.match(workspace, /English/);
 });
-
