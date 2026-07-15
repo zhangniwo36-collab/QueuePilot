@@ -47,20 +47,47 @@ const baseTickets: Omit<Ticket, "activity">[] = [
   { id: "QP-1041", subject: "Webhook deliveries delayed", customer: "Owen Clark", email: "owen@example.test", message: "Production webhook events are arriving roughly twenty minutes late. This blocks our fulfillment automation.", status: "resolved", priority: "urgent", category: "Bug", channel: "Web", assignee: "Priya Shah", createdAt: "2026-07-12T09:15:00.000Z", slaDueAt: "2026-07-12T13:15:00.000Z", tags: ["webhook", "automation"] },
 ];
 
-export const seedTickets: Ticket[] = baseTickets.map((ticket) => ({
-  ...ticket,
-  activity: [{ id: `${ticket.id}-1`, type: "message", body: ticket.message, author: ticket.customer, at: ticket.createdAt }],
-}));
+const SEED_REFERENCE_TIME = Date.parse("2026-07-14T12:00:00.000Z");
+
+function shiftSeedTime(value: string, now: number) {
+  return new Date(now + Date.parse(value) - SEED_REFERENCE_TIME).toISOString();
+}
+
+export function createSeedTickets(now: string | Date = new Date()): Ticket[] {
+  const nowTime = typeof now === "string" ? Date.parse(now) : now.getTime();
+  return baseTickets.map((ticket) => {
+    const createdAt = shiftSeedTime(ticket.createdAt, nowTime);
+    return {
+      ...ticket,
+      createdAt,
+      slaDueAt: shiftSeedTime(ticket.slaDueAt, nowTime),
+      activity: [{ id: `${ticket.id}-1`, type: "message", body: ticket.message, author: ticket.customer, at: createdAt }],
+    };
+  });
+}
+
+export const seedTickets = createSeedTickets();
+
+export const ticketTranslationsZh: Record<string, { subject: string; message: string }> = {
+  "QP-1048": { subject: "无法访问数据分析工作区", message: "SSO 证书更新后，我们的运营团队无法登录。今天的报告评审前必须恢复访问。" },
+  "QP-1047": { subject: "六月账单被重复扣款", message: "银行卡上出现了两笔六月账单扣款，请确认退款流程和预计到账时间。" },
+  "QP-1046": { subject: "CSV 导入到 82% 时停止", message: "包含 4,200 行客户数据的 CSV 每次都会在 82% 停止，但较小的文件可以成功导入。" },
+  "QP-1045": { subject: "增加每周摘要定时发送", message: "管理员能否设置每周一早晨发送摘要？如果支持时区选择，会更适合分布式团队。" },
+  "QP-1044": { subject: "需要帮助邀请第一批团队成员", message: "我们已经完成设置，但不确定财务和运营团队成员应该选择哪些角色。" },
+  "QP-1043": { subject: "移动端导航遮挡保存按钮", message: "在 iPhone 15 横屏编辑报告时，底部导航会遮挡保存按钮。" },
+  "QP-1042": { subject: "税号已经成功更新", message: "感谢更新账户税号，现在已经可以看到修正后的发票。" },
+  "QP-1041": { subject: "Webhook 推送延迟", message: "生产环境的 Webhook 事件大约延迟二十分钟，导致履约自动化流程受阻。" },
+};
 
 export function classifyTicket(text: string): { category: TicketCategory; priority: TicketPriority } {
   const value = text.toLowerCase();
-  const category: TicketCategory = /invoice|billing|refund|charged/.test(value) ? "Billing"
-    : /login|password|access|sso/.test(value) ? "Access"
-    : /bug|error|broken|stops|overlap|delay/.test(value) ? "Bug"
-    : /feature|could you add|request|dark mode/.test(value) ? "Feature request"
-    : /setup|onboard|invite|first team/.test(value) ? "Onboarding" : "General";
-  const priority: TicketPriority = /cannot login|outage|security|production.*block|blocked/.test(value) ? "urgent"
-    : /charged twice|duplicate.*charge|refund|consistently stops/.test(value) ? "high"
+  const category: TicketCategory = /invoice|billing|refund|charged|账单|发票|扣款|退款|收费/.test(value) ? "Billing"
+    : /login|password|access|sso|登录|密码|访问|权限|单点登录/.test(value) ? "Access"
+    : /bug|error|broken|stops|overlap|delay|故障|错误|失败|停止|遮挡|延迟|异常|崩溃/.test(value) ? "Bug"
+    : /feature|could you add|request|dark mode|功能|建议|希望增加|新增/.test(value) ? "Feature request"
+    : /setup|onboard|invite|first team|设置|入门|邀请|团队成员/.test(value) ? "Onboarding" : "General";
+  const priority: TicketPriority = /cannot login|outage|security|production.*block|blocked|无法登录|宕机|安全|生产环境.*(?:阻塞|无法)|被阻塞|紧急/.test(value) ? "urgent"
+    : /charged twice|duplicate.*charge|refund|consistently stops|重复.*(?:扣款|收费)|退款|总是.*停止|反复失败/.test(value) ? "high"
     : category === "Feature request" ? "low" : "normal";
   return { category, priority };
 }
@@ -68,7 +95,8 @@ export function classifyTicket(text: string): { category: TicketCategory; priori
 export function filterTickets(tickets: Ticket[], filters: QueueFilters): Ticket[] {
   const query = filters.query.trim().toLowerCase();
   return tickets.filter((ticket) => {
-    const searchable = [ticket.id, ticket.subject, ticket.customer, ticket.email, ticket.message, ...ticket.tags].join(" ").toLowerCase();
+    const translated = ticketTranslationsZh[ticket.id];
+    const searchable = [ticket.id, ticket.subject, ticket.customer, ticket.email, ticket.message, translated?.subject, translated?.message, ...ticket.tags].filter(Boolean).join(" ").toLowerCase();
     return (!query || searchable.includes(query))
       && (filters.status === "all" || ticket.status === filters.status)
       && (filters.priority === "all" || ticket.priority === filters.priority)
