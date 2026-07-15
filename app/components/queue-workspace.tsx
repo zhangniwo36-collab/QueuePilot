@@ -1,13 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { addReply, classifyTicket, filterTickets, getQueueMetrics, getSlaState, seedTickets, team, ticketsToCsv, updateTicket, type QueueFilters, type Ticket, type TicketPriority, type TicketStatus } from "../lib/tickets";
+import { htmlLanguage, resolveLocale, type Locale } from "../lib/locale";
+import { addReply, classifyTicket, filterTickets, getQueueMetrics, getSlaState, seedTickets, team, ticketTranslationsZh, ticketsToCsv, updateTicket, type QueueFilters, type Ticket, type TicketPriority, type TicketStatus } from "../lib/tickets";
 
-const STORAGE_KEY = "queuepilot-demo-v1";
+const STORAGE_KEY = "queuepilot-demo-v2";
 const LANGUAGE_KEY = "queuepilot-language";
 const initialFilters: QueueFilters = { query: "", status: "all", priority: "all", assignee: "all" };
-
-type Locale = "en" | "zh";
 
 const copy = {
   en: {
@@ -34,17 +33,6 @@ const copy = {
 
 const optionZh: Record<string, string> = { all: "全部", open: "待处理", pending: "等待中", resolved: "已解决", urgent: "紧急", high: "高", normal: "普通", low: "低", Unassigned: "未分配", Access: "访问权限", Billing: "账单", Bug: "故障", "Feature request": "功能建议", Onboarding: "新手引导", message: "客户消息", reply: "回复", change: "状态变更", Email: "邮件", Web: "网页", Chat: "聊天" };
 
-const ticketZh: Record<string, { subject: string; message: string }> = {
-  "QP-1048": { subject: "无法访问数据分析工作区", message: "SSO 证书更新后，我们的运营团队无法登录。今天的报告评审前必须恢复访问。" },
-  "QP-1047": { subject: "六月账单被重复扣款", message: "银行卡上出现了两笔六月账单扣款，请确认退款流程和预计到账时间。" },
-  "QP-1046": { subject: "CSV 导入到 82% 时停止", message: "包含 4,200 行客户数据的 CSV 每次都会在 82% 停止，但较小的文件可以成功导入。" },
-  "QP-1045": { subject: "增加每周摘要定时发送", message: "管理员能否设置每周一早晨发送摘要？如果支持时区选择，会更适合分布式团队。" },
-  "QP-1044": { subject: "需要帮助邀请第一批团队成员", message: "我们已经完成设置，但不确定财务和运营团队成员应该选择哪些角色。" },
-  "QP-1043": { subject: "移动端导航遮挡保存按钮", message: "在 iPhone 15 横屏编辑报告时，底部导航会遮挡保存按钮。" },
-  "QP-1042": { subject: "税号已经成功更新", message: "感谢更新账户税号，现在已经可以看到修正后的发票。" },
-  "QP-1041": { subject: "Webhook 推送延迟", message: "生产环境的 Webhook 事件大约延迟二十分钟，导致履约自动化流程受阻。" },
-};
-
 function formatTime(value: string, locale: Locale) {
   return new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
 }
@@ -69,13 +57,13 @@ export function QueueWorkspace() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try { const saved = window.localStorage.getItem(STORAGE_KEY); if (saved) setTickets(JSON.parse(saved)); } catch { /* keep safe seed data */ }
-      const savedLanguage = window.localStorage.getItem(LANGUAGE_KEY) as Locale | null;
-      setLocale(savedLanguage ?? (navigator.language.startsWith("zh") ? "zh" : "en"));
+      setLocale(resolveLocale(window.localStorage.getItem(LANGUAGE_KEY), navigator.language));
       setHydrated(true);
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
   useEffect(() => { if (hydrated) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets)); }, [tickets, hydrated]);
+  useEffect(() => { document.documentElement.lang = htmlLanguage(locale); }, [locale]);
 
   const visibleTickets = useMemo(() => filterTickets(tickets, filters), [tickets, filters]);
   const selected = tickets.find((ticket) => ticket.id === selectedId) ?? visibleTickets[0] ?? tickets[0];
@@ -87,7 +75,7 @@ export function QueueWorkspace() {
     window.localStorage.setItem(LANGUAGE_KEY, next);
   }
   function display(value: string) { return locale === "zh" ? optionZh[value] ?? value : value; }
-  function displayTicket(ticket: Ticket) { return locale === "zh" ? ticketZh[ticket.id] ?? ticket : ticket; }
+  function displayTicket(ticket: Ticket) { return locale === "zh" ? ticketTranslationsZh[ticket.id] ?? ticket : ticket; }
 
   function patchSelected(patch: Partial<Pick<Ticket, "status" | "priority" | "assignee">>) {
     setTickets((current) => current.map((ticket) => ticket.id === selected.id ? updateTicket(ticket, patch) : ticket));
@@ -172,4 +160,3 @@ function Filter({ label, value, options, onChange, locale }: { label: string; va
 function InlineSelect({ label, value, options, onChange, locale }: { label: string; value: string; options: string[]; onChange(value: string): void; locale: Locale }) {
   return <label><span>{label}</span><select value={value} onChange={(event) => onChange(event.target.value)}>{options.map((option) => <option key={option} value={option}>{locale === "zh" ? optionZh[option] ?? option : option}</option>)}</select></label>;
 }
-
